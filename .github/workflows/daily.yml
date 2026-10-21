@@ -35,3 +35,9 @@ jobs:
           git add index.html audio/
           git commit -m "Mise à jour quotidienne de la revue de presse arabe [skip ci]" || echo "Aucun changement"
           git push   
+      - name: Générer la nouvelle revue et l'audio
+        env:
+          GEMINI_API_KEY: ${{ AQ.Ab8RN6IOUUlwB4x31wB1gHtRNw04jbNpzZSmd7Mo26prRRxVHA }}
+        run: |
+          pip install google-genai
+          python generate.py
