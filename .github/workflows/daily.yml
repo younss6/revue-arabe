@@ -37,7 +37,7 @@ jobs:
           git push   
       - name: Générer la nouvelle revue et l'audio
         env:
-          GEMINI_API_KEY: ${{ AQ.Ab8RN6IOUUlwB4x31wB1gHtRNw04jbNpzZSmd7Mo26prRRxVHA }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
           pip install google-genai
           python generate.py
