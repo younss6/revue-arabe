@@ -3,25 +3,41 @@ import sys
 import json
 import base64
 import asyncio
+from datetime import datetime
 import edge_tts
 
 VOICE = "ar-SA-HamedNeural"
 RATE = "-10%"
 
-# Fallback articles if no GEMINI_API_KEY is configured
-FALLBACK_ARTICLES = [
+today_str = datetime.now().strftime("%d/%m/%Y")
+
+FALLBACK_POOL = [
     {
         "id": 1,
         "theme": "Business & Entrepreneuriat",
         "theme_ar": "الأَعْمَالُ وَرِيَادَةُ الأَعْمَالِ",
         "icon": "💼",
-        "text": "يَبْدَأُ الْكَثِيرُ مِنَ الشَّبَابِ مَشَارِيعَ جَدِيدَةً كُلَّ عَامٍ. تُسَاعِدُ الشَّرِكَاتُ النَّاشِئَةُ فِي حَلِّ مَشَاكِلِ النَّاسِ الْيَوْمِيَّةِ، مِثْلَ شِرَاءِ الْمُنْتَجَاتِ عَبْرَ الْإِنْتِرْنِت. يَبْحَثُ أَصْحَابُ هَذِهِ الْمَشَارِيعِ عَنِ الْمَالِ لِتَكْبِيرِ أَعْمَالِهِمْ وَتَوْظِيفِ عُمَّالٍ جُدُدٍ.",
-        "traduction": "De nombreux jeunes lancent de nouveaux projets chaque année. Les startups aident à résoudre les problèmes quotidiens des gens, comme l'achat de produits sur Internet. Les créateurs de ces projets recherchent des financements pour faire grandir leurs affaires et embaucher de nouveaux employés.",
-        "vocab": [
-            ("مَشَارِيعُ جَدِيدَةٌ", "mashārī' jadīdah", "nouveaux projets (singulier : mashrū')"),
-            ("الشَّرِكَاتُ النَّاشِئَةُ", "ash-sharikāt an-nāshi'ah", "les jeunes pousses / startups"),
-            ("شِرَاءُ الْمُنْتَجَاتِ", "shirā' al-muntajāt", "l'achat de produits"),
-            ("تَوْظِيفُ عُمَّالٍ", "tawzīf 'ummāl", "l'embauche d'employés")
+        "variants": [
+            {
+                "text": "يَبْدَأُ الْكَثِيرُ مِنَ الشَّبَابِ مَشَارِيعَ جَدِيدَةً فِي مَجَالِ التِّجَارَةِ الرَّقْمِيَّةِ. تُسَاعِدُ الشَّرِكَاتُ النَّاشِئَةُ عَلَى ابْتِكَارِ طُرُقٍ سَهْلَةٍ لِلتَّسَوُّقِ وَالدَّفْعِ عَبْرَ الْإِنْتِرْنِت. يَبْحَثُ رُوَّادُ الْأَعْمَالِ عَنْ مُسْتَثْمِرِينَ لِتَوْسِيعِ أَعْمَالِهِمْ فِي مُخْتَلِفِ الدُّوَلِ.",
+                "traduction": "De nombreux jeunes lancent de nouveaux projets dans le commerce numérique. Les startups aident à inventer des moyens simples pour faire des achats et payer en ligne. Les entrepreneurs recherchent des investisseurs pour développer leurs affaires dans différents pays.",
+                "vocab": [
+                    ["التِّجَارَةُ الرَّقْمِيَّةُ", "at-tijāratu r-raqamiyyah", "le commerce numérique"],
+                    ["التَّسَوُّقُ عَبْرَ الْإِنْتِرْنِت", "at-tasawwuqu 'abra l-internet", "le shopping en ligne"],
+                    ["مُسْتَثْمِرُونَ", "mustathmirūn", "investisseurs (singulier : mustathmir)"],
+                    ["تَوْسِيعُ الْأَعْمَالِ", "tawsī'u l-a'māl", "l'expansion des activités"]
+                ]
+            },
+            {
+                "text": "تَفْتَتِحُ الشَّرِكَاتُ الصَّغِيرَةُ أَسْوَاقًا جَدِيدَةً لِإِنْتَاجِ الْأَغْذِيَةِ الصِّحِّيَّةِ وَالطَّبِيعِيَّةِ. يُفَضِّلُ النَّاسُ الْيَوْمَ شِرَاءَ الْمُنْتَجَاتِ الْمَحَلِّيَّةِ لِدَعْمِ الْمُزَارِعِينَ وَحِمَايَةِ الْبِيئَةِ. يُحَقِّقُ هَذَا النَّوْعُ مِنَ الْمَشَارِيعِ نَجَاحًا مَالِيًّا مُتَزَايِدًا.",
+                "traduction": "Les petites entreprises ouvrent de nouveaux marchés pour produire des aliments sains et naturels. Les gens préfèrent aujourd'hui acheter des produits locaux pour soutenir les agriculteurs et protéger l'environnement. Ce type de projet rencontre un succès financier grandissant.",
+                "vocab": [
+                    ["أَسْوَاقٌ جَدِيدَةٌ", "aswāqun jadīdah", "de nouveaux marchés (pluriel de sūq)"],
+                    ["مُنْتَجَاتٌ مَحَلِّيَّةٌ", "muntajātun mahalliyyah", "produits locaux"],
+                    ["دَعْمُ الْمُزَارِعِينَ", "da'mu l-muzāri'īn", "le soutien aux agriculteurs"],
+                    ["حِمَايَةُ الْبِيئَةِ", "himāyatu l-bī'ah", "la protection de l'environnement"]
+                ]
+            }
         ]
     },
     {
@@ -29,13 +45,27 @@ FALLBACK_ARTICLES = [
         "theme": "Géopolitique",
         "theme_ar": "الْجِيُوسِيَاسَةُ وَالْعَلَاقَاتُ الدَّوْلِيَّةُ",
         "icon": "🌍",
-        "text": "تَتَعَاوَنُ الدُّوَلُ مَعًا لِتَحْقِيقِ السَّلَامِ وَالْأَمْنِ فِي الْعَالَمِ. تَلْتَقِي الْحُكُومَاتُ لِمُنَاقَشَةِ مَشَاكِلِ الِاقْتِصَادِ، وَتَبَادُلِ الْبَضَائِعِ وَالْأَغْذِيَةِ. يُسَاعِدُ هَذَا التَّعَاوُنُ الدَّوْلِيُّ عَلَى تَجَنُّبِ الْحُرُوبِ وَمُسَاعَدَةِ الشُّعُوبِ الْمُحْتَاجَةِ.",
-        "traduction": "Les pays coopèrent ensemble pour instaurer la paix et la sécurité dans le monde. Les gouvernements se réunissent pour discuter des défis économiques et échanger des marchandises et de la nourriture. Cette coopération internationale permet d'éviter les guerres et de venir en aide aux populations dans le besoin.",
-        "vocab": [
-            ("تَتَعَاوَنُ الدُّوَلُ", "tata'āwanu ad-duwal", "les pays coopèrent"),
-            ("تَحْقِيقُ السَّلَامِ", "tahqīq as-salām", "l'instauration de la paix"),
-            ("تَبَادُلُ الْبَضَائِعِ", "tabādulu l-badā'i'", "l'échange de marchandises"),
-            ("تَجَنُّبُ الْحُرُوبِ", "tajannubu l-hurūb", "éviter les guerres")
+        "variants": [
+            {
+                "text": "تُوَقِّعُ الدُّوَلُ الْكُبْرَى اتِّفَاقِيَّاتٍ جَدِيدَةً لِتَأْمِينِ مَصَادِرِ الْمِيَاهِ وَالطَّاقَةِ الشَّمْسِيَّةِ. يُسَافِرُ الْوُزَرَاءُ لِلْمُشَارَكَةِ فِي مُؤْتَمَرَاتٍ دَوْلِيَّةٍ تَهْدِفُ إِلَى مُحَارَبَةِ التَّغَيُّرِ الْمُنَاخِيِّ وَتَقْوِيَةِ الصَّدَاقَةِ بَيْنَ الشُّعُوبِ.",
+                "traduction": "Les grands pays signent de nouveaux accords pour sécuriser les ressources en eau et en énergie solaire. Les ministres voyagent pour participer à des conférences internationales visant à lutter contre le changement climatique et à renforcer l'amitié entre les peuples.",
+                "vocab": [
+                    ["اتِّفَاقِيَّاتٌ", "ittifāqiyyāt", "accords / traités (singulier : ittifāqiyyah)"],
+                    ["الطَّاقَةُ الشَّمْسِيَّةُ", "at-tāqatu sh-shamsiyyah", "l'énergie solaire"],
+                    ["التَّغَيُّرُ الْمُنَاخِيُّ", "at-taghayyuru l-munākhī", "le changement climatique"],
+                    ["الصَّدَاقَةُ", "as-sadāqah", "l'amitié"]
+                ]
+            },
+            {
+                "text": "تَتَعَاوَنُ الدُّوَلُ مَعًا لِتَحْقِيقِ السَّلَامِ وَالْأَمْنِ فِي الْعَالَمِ. تَلْتَقِي الْحُكُومَاتُ لِمُنَاقَشَةِ مَشَاكِلِ الِاقْتِصَادِ، وَتَبَادُلِ الْبَضَائِعِ وَالْأَغْذِيَةِ. يُسَاعِدُ هَذَا التَّعَاوُنُ الدَّوْلِيُّ عَلَى تَجَنُّبِ الْحُرُوبِ وَمُسَاعَدَةِ الشُّعُوبِ الْمُحْتَاجَةِ.",
+                "traduction": "Les pays coopèrent ensemble pour instaurer la paix et la sécurité dans le monde. Les gouvernements se réunissent pour discuter des défis économiques et échanger des marchandises et de la nourriture. Cette coopération internationale permet d'éviter les guerres et de venir en aide aux populations dans le besoin.",
+                "vocab": [
+                    ["تَتَعَاوَنُ الدُّوَلُ", "tata'āwanu ad-duwal", "les pays coopèrent"],
+                    ["تَحْقِيقُ السَّلَامِ", "tahqīq as-salām", "l'instauration de la paix"],
+                    ["تَبَادُلُ الْبَضَائِعِ", "tabādulu l-badā'i'", "l'échange de marchandises"],
+                    ["تَجَنُّبُ الْحُرُوبِ", "tajannubu l-hurūb", "éviter les guerres"]
+                ]
+            }
         ]
     },
     {
@@ -43,13 +73,27 @@ FALLBACK_ARTICLES = [
         "theme": "Informatique",
         "theme_ar": "الْمَعْلُومَاتِيَّةُ وَالْبَرْمَجَةُ",
         "icon": "💻",
-        "text": "أَصْبَحَتْ لُغَاتُ الْبَرْمَجَةِ مَهَارَةً مُهِمَّةً لِلْحُصُولِ عَلَى وَظِيفَةٍ جَيِّدَةٍ. يَتَعَلَّمُ الطُّلَّابُ كَيْفِيَّةَ صِنَاعَةِ الْمَوَاقِعِ وَالتَّطْبِيقَاتِ لِلْهَوَاتِفِ الذَّكِيَّةِ. كَمَا يَهْتَمُّ الْمُهَنْدِسُونَ بِحِمَايَةِ الْحَوَاسِيبِ مِنَ الْفَيْرُوسَاتِ وَالسَّرِقَةِ الرَّقْمِيَّةِ.",
-        "traduction": "Les langages de programmation sont devenus une compétence essentielle pour décrocher un bon emploi. Les étudiants apprennent comment créer des sites web et des applications pour smartphones. De même, les ingénieurs veillent à protéger les ordinateurs contre les virus et le piratage numérique.",
-        "vocab": [
-            ("لُغَاتُ الْبَرْمَجَةِ", "lughāt al-barmajah", "les langages de programmation"),
-            ("وَظِيفَةٌ جَيِّدَةٌ", "wazīfatun jayyidah", "un bon emploi"),
-            ("الْهَوَاتِفُ الذَّكِيَّةُ", "al-hawātifu dh-dhakiyyah", "les smartphones"),
-            ("السَّرِقَةُ الرَّقْمِيَّةُ", "as-sariqatu r-raqamiyyah", "le piratage numérique")
+        "variants": [
+            {
+                "text": "يَبْنِي الْمُبَرْمِجُونَ تَطْبِيقَاتٍ سَرِيعَةً تَعْمَلُ بِدُونِ إِنْتِرْنِت لِمُسَاعَدَةِ النَّاسِ فِي السَّفَرِ. تُسَاعِدُ هَذِهِ الْبَرَامِجُ فِي تَعَلُّمِ اللُّغَاتِ وَقِرَاءَةِ الْكُتُبِ الْإِلِكْتُرُونِيَّةِ بِسُهُولَةٍ كَبِيرَةٍ عَلَى الشَّاشَاتِ الصَّغِيرَةِ.",
+                "traduction": "Les développeurs conçoivent des applications rapides qui fonctionnent hors-ligne pour aider les personnes en voyage. Ces logiciels aident à apprendre les langues et à lire des livres électroniques très facilement sur les petits écrans.",
+                "vocab": [
+                    ["الْمُبَرْمِجُونَ", "al-mubarmijūn", "les programmeurs / développeurs"],
+                    ["بِدُونِ إِنْتِرْنِت", "bi-dūni internet", "hors-ligne / sans internet"],
+                    ["تَعَلُّمُ اللُّغَاتِ", "ta'allumu l-lughāt", "l'apprentissage des langues"],
+                    ["كُتُبٌ إِلِكْتُرُونِيَّةٌ", "kutubun iliktrūniyyah", "livres électroniques / e-books"]
+                ]
+            },
+            {
+                "text": "أَصْبَحَتْ لُغَاتُ الْبَرْمَجَةِ مَهَارَةً مُهِمَّةً لِلْحُصُولِ عَلَى وَظِيفَةٍ جَيِّدَةٍ. يَتَعَلَّمُ الطُّلَّابُ كَيْفِيَّةَ صِنَاعَةِ الْمَوَاقِعِ وَالتَّطْبِيقَاتِ لِلْهَوَاتِفِ الذَّكِيَّةِ. كَمَا يَهْتَمُّ الْمُهَنْدِسُونَ بِحِمَايَةِ الْحَوَاسِيبِ مِنَ الْفَيْرُوسَاتِ وَالسَّرِقَةِ الرَّقْمِيَّةِ.",
+                "traduction": "Les langages de programmation sont devenus une compétence essentielle pour décrocher un bon emploi. Les étudiants apprennent comment créer des sites web et des applications pour smartphones. De même, les ingénieurs veillent à protéger les ordinateurs contre les virus et le piratage numérique.",
+                "vocab": [
+                    ["لُغَاتُ الْبَرْمَجَةِ", "lughāt al-barmajah", "les langages de programmation"],
+                    ["وَظِيفَةٌ جَيِّدَةٌ", "wazīfatun jayyidah", "un bon emploi"],
+                    ["الْهَوَاتِفُ الذَّكِيَّةُ", "al-hawātifu dh-dhakiyyah", "les smartphones"],
+                    ["السَّرِقَةُ الرَّقْمِيَّةُ", "as-sariqatu r-raqamiyyah", "le piratage numérique"]
+                ]
+            }
         ]
     },
     {
@@ -57,13 +101,27 @@ FALLBACK_ARTICLES = [
         "theme": "Systèmes d'Information",
         "theme_ar": "نُظُمُ الْمَعْلُومَاتِ",
         "icon": "🗄️",
-        "text": "تَسْتَخْدِمُ الشَّرِكَاتُ أَنْظِمَةَ الْحَاسُوبِ لِحِفْظِ مَعْلُومَاتِ الزَّبَائِنِ وَالْمَبِيعَاتِ. تُسَاعِدُ هَذِهِ النُّظُمُ الْمُدِيرَ عَلَى مَعْرِفَةِ أَرْبَاحِ الشَّرِكَةِ فِي أَيِّ وَقْتٍ. عِنْدَمَا تَكُونُ الْمَعْلُومَاتُ مُنَظَّمَةً، يَعْمَلُ الْمُوَظَّفُونَ بِسُرْعَةٍ وَدِقَّةٍ أَكْبَرَ.",
-        "traduction": "Les entreprises utilisent des systèmes informatiques pour conserver les données des clients et les ventes. Ces systèmes aident le responsable à connaître les bénéfices de la société à tout moment. Lorsque les informations sont bien organisées, les employés travaillent avec plus de rapidité et de précision.",
-        "vocab": [
-            ("أَنْظِمَةُ الْحَاسُوبِ", "anzimatu l-hāsūb", "systèmes informatiques"),
-            ("مَعْلُومَاتُ الزَّبَائِنِ", "ma'lūmātu z-zabā'in", "données clients"),
-            ("أَرْبَاحُ الشَّرِكَةِ", "arbāhu sh-sharikah", "les bénéfices de l'entreprise"),
-            ("مُوَظَّفُونَ", "muwazzafūn", "les employés")
+        "variants": [
+            {
+                "text": "تَحْفَظُ الْمُسْتَشْفَيَاتُ وَالْمَدَارِسُ مِلَفَّاتِ الْمَرْضَى وَالطُّلَّابِ فِي قَوَاعِدِ بَيَانَاتٍ آمِنَةٍ. يُمْكِنُ لِلْأَطِبَّاءِ وَالْمُعَلِّمِينَ الْوُصُولُ إِلَى الْمَعْلُومَاتِ فِي ثَوَانٍ مَعْدُودَةٍ، مِمَّا يُحَسِّنُ جَوْدَةَ الْخِدْمَاتِ وَيُوَفِّرُ الْوَقْتَ.",
+                "traduction": "Les hôpitaux et les écoles conservent les dossiers des patients et des élèves dans des bases de données sécurisées. Les médecins et les enseignants peuvent accéder aux informations en quelques secondes, ce qui améliore la qualité des services et fait gagner du temps.",
+                "vocab": [
+                    ["قَوَاعِدُ بَيَانَاتٍ", "qawā'idu bayānāt", "bases de données"],
+                    ["مِلَفَّاتُ الْمَرْضَى", "milaffātu l-mardā", "dossiers des patients"],
+                    ["جَوْدَةُ الْخِدْمَاتِ", "jawdatu l-khidamāt", "qualité des services"],
+                    ["يُوَفِّرُ الْوَقْتَ", "yuwaffiru l-waqt", "fait gagner du temps"]
+                ]
+            },
+            {
+                "text": "تَسْتَخْدِمُ الشَّرِكَاتُ أَنْظِمَةَ الْحَاسُوبِ لِحِفْظِ مَعْلُومَاتِ الزَّبَائِنِ وَالْمَبِيعَاتِ. تُسَاعِدُ هَذِهِ النُّظُمُ الْمُدِيرَ عَلَى مَعْرِفَةِ أَرْبَاحِ الشَّرِكَةِ فِي أَيِّ وَقْتٍ. عِنْدَمَا تَكُونُ الْمَعْلُومَاتُ مُنَظَّمَةً، يَعْمَلُ الْمُوَظَّفُونَ بِسُرْعَةٍ وَدِقَّةٍ أَكْبَرَ.",
+                "traduction": "Les entreprises utilisent des systèmes informatiques pour conserver les données des clients et les ventes. Ces systèmes aident le responsable à connaître les bénéfices de la société à tout moment. Lorsque les informations sont bien organisées, les employés travaillent avec plus de rapidité et de précision.",
+                "vocab": [
+                    ["أَنْظِمَةُ الْحَاسُوبِ", "anzimatu l-hāsūb", "systèmes informatiques"],
+                    ["مَعْلُومَاتُ الزَّبَائِنِ", "ma'lūmātu z-zabā'in", "données clients"],
+                    ["أَرْبَاحُ الشَّرِكَةِ", "arbāhu sh-sharikah", "les bénéfices de l'entreprise"],
+                    ["مُوَظَّفُونَ", "muwazzafūn", "les employés"]
+                ]
+            }
         ]
     },
     {
@@ -71,28 +129,62 @@ FALLBACK_ARTICLES = [
         "theme": "Intelligence Artificielle",
         "theme_ar": "الذَّكَاءُ الِاصْطِنَاعِيُّ",
         "icon": "🤖",
-        "text": "يُسَاعِدُ الذَّكَاءُ الِاصْطِنَاعِيُّ النَّاسَ فِي مَهَامِّهِمْ كُلَّ يَوْمٍ. يُمْكِنُ لِهَذِهِ الْبَرَامِجِ كِتَابَةُ الرَّسَائِلِ، وَتَرْجَمَةُ اللُّغَاتِ، وَالْإِجَابَةُ عَنِ الْأَسْئِلَةِ الصَّعْبَةِ. لَكِنْ يَبْقَى عَقْلُ الْإِنْسَانِ دَائِمًا هُوَ الْأَهَمَّ لِاتِّخَاذِ الْقَرَارَاتِ الصَّحِيحَةِ.",
-        "traduction": "L'intelligence artificielle aide les gens dans leurs tâches au quotidien. Ces logiciels sont capables de rédiger des messages, de traduire des langues et de répondre à des questions complexes. Cependant, l'esprit humain reste toujours le plus important pour prendre les bonnes décisions.",
-        "vocab": [
-            ("مَهَامّ", "mahāmm", "tâches / missions"),
-            ("تَرْجَمَةُ اللُّغَاتِ", "tarjamatu l-lughāt", "la traduction des langues"),
-            ("عَقْلُ الْإِنْسَانِ", "'aqlu l-insān", "l'esprit humain"),
-            ("اتِّخَاذُ الْقَرَارَاتِ", "ittikhādu l-qarārāt", "la prise de décisions")
+        "variants": [
+            {
+                "text": "تَسْتَخْدِمُ السَّيَّارَاتُ الْحَدِيثَةُ الذَّكَاءَ الِاصْطِنَاعِيَّ لِلتَّعَرُّفِ عَلَى إِشَارَاتِ الْمُرُورِ وَتَجَنُّبِ الْحَوَادِثِ. كَمَا تُسَاعِدُ هَذِهِ التِّقْنِيَّاتُ الْمُعَلِّمِينَ فِي شَرْحِ الدُّرُوسِ بِطَرِيقَةٍ مُسَلِّيَةٍ وَتَفَاعُلِيَّةٍ لِلْأَطْفَالِ.",
+                "traduction": "Les voitures modernes utilisent l'intelligence artificielle pour reconnaître les feux de circulation et éviter les accidents. De même, ces technologies aident les enseignants à expliquer les cours de façon ludique et interactive pour les enfants.",
+                "vocab": [
+                    ["إِشَارَاتُ الْمُرُورِ", "ishārātu l-murūr", "panneaux / feux de signalisation"],
+                    ["تَجَنُّبُ الْحَوَادِثِ", "tajannubu l-hawādith", "éviter les accidents"],
+                    ["طَرِيقَةٌ مُسَلِّيَةٌ", "tarīqatun musalliyah", "méthode divertissante / ludique"],
+                    ["تَفَاعُلِيَّةٌ", "tafā'uliyyah", "interactive"]
+                ]
+            },
+            {
+                "text": "يُسَاعِدُ الذَّكَاءُ الِاصْطِنَاعِيُّ النَّاسَ فِي مَهَامِّهِمْ كُلَّ يَوْمٍ. يُمْكِنُ لِهَذِهِ الْبَرَامِجِ كِتَابَةُ الرَّسَائِلِ، وَتَرْجَمَةُ اللُّغَاتِ، وَالْإِجَابَةُ عَنِ الْأَسْئِلَةِ الصَّعْبَةِ. لَكِنْ يَبْقَى عَقْلُ الْإِنْسَانِ دَائِمًا هُوَ الْأَهَمَّ لِاتِّخَاذِ الْقَرَارَاتِ الصَّحِيحَةِ.",
+                "traduction": "L'intelligence artificielle aide les gens dans leurs tâches au quotidien. Ces logiciels sont capables de rédiger des messages, de traduire des langues et de répondre à des questions complexes. Cependant, l'esprit humain reste toujours le plus important pour prendre les bonnes décisions.",
+                "vocab": [
+                    ["مَهَامّ", "mahāmm", "tâches / missions"],
+                    ["تَرْجَمَةُ اللُّغَاتِ", "tarjamatu l-lughāt", "la traduction des langues"],
+                    ["عَقْلُ الْإِنْسَانِ", "'aqlu l-insān", "l'esprit humain"],
+                    ["اتِّخَاذُ الْقَرَارَاتِ", "ittikhādu l-qarārāt", "la prise de décisions"]
+                ]
+            }
         ]
     }
 ]
 
+def get_fallback_articles():
+    day_seed = datetime.now().timetuple().tm_yday
+    articles = []
+    for cat in FALLBACK_POOL:
+        var_idx = day_seed % len(cat["variants"])
+        selected = cat["variants"][var_idx]
+        articles.append({
+            "id": cat["id"],
+            "theme": cat["theme"],
+            "theme_ar": cat["theme_ar"],
+            "icon": cat["icon"],
+            "text": selected["text"],
+            "traduction": selected["traduction"],
+            "vocab": selected["vocab"]
+        })
+    return articles
+
 def fetch_articles():
-    api_key = os.environ.get("GEMINI_API_KEY")
+    api_key = os.environ.get("GEMINI_API_KEY", "").strip()
     if not api_key:
-        print("No GEMINI_API_KEY found, using default curriculum articles.")
-        return FALLBACK_ARTICLES
+        print("INFO: Pas de GEMINI_API_KEY trouvée, utilisation du catalogue dynamique du jour.")
+        return get_fallback_articles()
+    
+    models_to_try = ['gemini-2.0-flash', 'gemini-1.5-flash']
     
     try:
         from google import genai
         client = genai.Client(api_key=api_key)
-        prompt = """
-Tu es un professeur d'arabe pour francophones. Génère 5 courts paragraphes d'actualités éducatives pour un apprenant de niveau Débutant (A2).
+        
+        prompt = f"""
+Tu es un journaliste et professeur d'arabe. Rédige 5 courts paragraphes d'actualités pour aujourd'hui ({today_str}), adaptés pour un apprenant francophone de niveau Débutant (A2).
 Les 5 thèmes :
 1. Business & Entrepreneuriat (الأَعْمَالُ وَرِيَادَةُ الأَعْمَالِ)
 2. Géopolitique (الْجِيُوسِيَاسَةُ وَالْعَلَاقَاتُ الدَّوْلِيَّةُ)
@@ -101,42 +193,53 @@ Les 5 thèmes :
 5. Intelligence Artificielle (الذَّكَاءُ الِاصْطِنَاعِيُّ)
 
 Règles impératives :
-- Arabe accessible A2, phrases courtes, grammaire directe.
-- VOYELLES COMPLÈTES (TASHKĪL) sur TOUS les mots arabes.
-- Traduction française fluide.
-- 4 mots de vocabulaire clé avec translittération phonétique et traduction.
+- Arabe simple niveau A2, phrases courtes et directes.
+- VOYELLES COMPLÈTES (TASHKĪL) obligatoires sur chaque mot.
+- Traduction française naturelle.
+- 4 expressions de vocabulaire avec [mot arabe vocalisé, phonétique, traduction].
 
-Réponds STRICTEMENT sous forme de JSON valide (une liste de 5 objets) :
+Réponds STRICTEMENT avec une liste JSON valide de 5 objets :
 [
-  {
+  {{
     "id": 1,
     "theme": "Business & Entrepreneuriat",
     "theme_ar": "الأَعْمَالُ وَرِيَادَةُ الأَعْمَالِ",
     "icon": "💼",
-    "text": "Texte arabe entièrement vocalisé",
-    "traduction": "Traduction française",
-    "vocab": [
-      ["mot arabe vocalisé", "phonétique", "traduction française"]
-    ]
-  },
+    "text": "...",
+    "traduction": "...",
+    "vocab": [["...", "...", "..."]]
+  }},
   ...
 ]
 """
-        response = client.models.generate_content(
-            model='gemini-2.5-flash',
-            contents=prompt,
-            config={'response_mime_type': 'application/json'}
-        )
-        return json.loads(response.text)
+        for m in models_to_try:
+            try:
+                print(f"Tentative de génération avec le modèle {m}...")
+                response = client.models.generate_content(
+                    model=m,
+                    contents=prompt,
+                    config={'response_mime_type': 'application/json'}
+                )
+                data = json.loads(response.text)
+                if isinstance(data, list) and len(data) == 5:
+                    print(f"SUCCÈS: 5 articles originaux générés par l'IA ({m}) !")
+                    return data
+            except Exception as model_err:
+                print(f"Erreur avec {m}: {model_err}")
+                continue
+
+        print("Avertissement: Bascule sur les articles dynamiques du jour.")
+        return get_fallback_articles()
     except Exception as e:
-        print(f"Error fetching from Gemini API: {e}, using fallback.")
-        return FALLBACK_ARTICLES
+        print(f"Erreur générale GenAI: {e}, utilisation du catalogue du jour.")
+        return get_fallback_articles()
 
 async def generate():
     articles = fetch_articles()
     os.makedirs("audio", exist_ok=True)
     audio_data = {}
     
+    print("Synthèse audio en cours...")
     for item in articles:
         aid = item["id"]
         filename = f"audio/a2_{aid}.mp3"
@@ -146,7 +249,7 @@ async def generate():
         with open(filename, "rb") as f:
             audio_data[str(aid)] = f"data:audio/mp3;base64,{base64.b64encode(f.read()).decode('utf-8')}"
             
-    full_speech = "مَوْجَزُ الْأَخْبَارِ لِلْمُسْتَوَى الْمُبْتَدِئِ. \n\n " + " \n\n ".join(
+    full_speech = f"مَوْجَزُ الْأَخْبَارِ لِيَوْمِ {today_str}. \n\n " + " \n\n ".join(
         [f"{it['theme_ar']}: {it['text']}" for it in articles]
     )
     tts_full = edge_tts.Communicate(full_speech, VOICE, rate=RATE)
@@ -203,7 +306,7 @@ async def generate():
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Revue de Presse Arabe - Quotidienne</title>
+  <title>Revue de Presse Arabe - Édition du {today_str}</title>
   <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Amiri:ital,wght@0,400;0,700;1,400&family=Cairo:wght@400;600;700&display=swap');
@@ -257,7 +360,7 @@ async def generate():
       <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300 mb-2">
-            <span>🟢 Niveau Débutant (A2) • Vocabulaire Essentiel</span>
+            <span>🟢 Édition du {today_str} • Niveau Débutant (A2)</span>
           </div>
           <h1 class="text-xl sm:text-2xl font-bold tracking-tight text-[var(--foreground)]">
             مَوْجَزُ الْأَخْبَارِ الْيَوْمِيّ • Revue Quotidienne
@@ -289,7 +392,7 @@ async def generate():
           <span class="text-2xl">📻</span>
           <div>
             <div class="text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">Audio Intégral</div>
-            <div class="text-sm font-semibold text-[var(--foreground)]">Écouter les 5 thèmes d'affilée</div>
+            <div class="text-sm font-semibold text-[var(--foreground)]">Écouter les 5 thèmes du {today_str}</div>
           </div>
         </div>
         <audio id="audio-full" controls preload="metadata" class="w-full sm:w-64 max-w-full">
@@ -303,7 +406,7 @@ async def generate():
     </main>
 
     <footer class="p-4 sm:p-5 border-t border-[var(--border)] bg-[var(--surface-variant)] text-xs text-[var(--muted-foreground)] flex flex-col sm:flex-row items-center justify-between gap-2 transition-colors duration-200">
-      <span>💡 Mise à jour automatique chaque matin par GitHub Actions & Netlify.</span>
+      <span>💡 Édition quotidienne du {today_str} mise à jour automatiquement.</span>
       <span class="font-medium">🌙 / ☀️ Thème Dark Mode</span>
     </footer>
 
@@ -398,7 +501,7 @@ async def generate():
 
     with open("index.html", "w", encoding="utf-8") as f:
         f.write(html_body)
-    print("New index.html successfully generated!")
+    print("New index.html successfully generated for", today_str)
 
 if __name__ == "__main__":
     asyncio.run(generate())
